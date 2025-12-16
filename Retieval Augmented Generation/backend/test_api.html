@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend API Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #0ea5e9;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #333;
+            border-radius: 8px;
+        }
+        button {
+            background: linear-gradient(to right, #0ea5e9, #0369a1);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.4);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .status {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #444;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #0ea5e9; }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #555;
+            border-top-color: #0ea5e9;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        select {
+            padding: 10px;
+            border-radius: 6px;
+            background: #444;
+            color: white;
+            border: 1px solid #555;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Backend API Tester</h1>
+        
+        <!-- Health Check -->
+        <div class="section">
+            <h2>1. Health Check</h2>
+            <button onclick="checkHealth()">Check Backend Health</button>
+            <div id="health-status" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- Load Dataset -->
+        <div class="section">
+            <h2>2. Load Dataset</h2>
+            <select id="dataset-select">
+                <option value="fashion_mnist">Fashion MNIST</option>
+                <option value="cifar10">CIFAR-10</option>
+            </select>
+            <select id="split-select">
+                <option value="train">Train</option>
+                <option value="test">Test</option>
+            </select>
+            <button onclick="loadDataset()" id="load-btn">Load Dataset</button>
+            <div id="load-status" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- Dataset Info -->
+        <div class="section">
+            <h2>3. Dataset Info</h2>
+            <button onclick="getDatasetInfo()">Get Dataset Info</button>
+            <div id="info-status" class="status" style="display:none;"></div>
+        </div>
+
+        <!-- Test Search -->
+        <div class="section">
+            <h2>4. Test Search</h2>
+            <input type="text" id="search-query" placeholder="Enter search query (e.g., 'red dress')" 
+                   style="padding: 10px; width: 300px; border-radius: 6px; background: #444; color: white; border: 1px solid #555; margin-right: 10px;">
+            <button onclick="testSearch()">Search</button>
+            <div id="search-status" class="status" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+
+        async function checkHealth() {
+            const statusDiv = document.getElementById('health-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="info">Checking...</span><span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/health`);
+                const data = await response.json();
+                statusDiv.innerHTML = `<span class="success">✓ Backend is healthy!</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>\n\nMake sure backend is running on http://localhost:8000`;
+            }
+        }
+
+        async function loadDataset() {
+            const statusDiv = document.getElementById('load-status');
+            const btn = document.getElementById('load-btn');
+            const dataset = document.getElementById('dataset-select').value;
+            const split = document.getElementById('split-select').value;
+            
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="info">Loading dataset... This may take 5-10 minutes for first time.</span><span class="loading"></span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_URL}/api/load-dataset`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        dataset_name: dataset,
+                        split: split
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<span class="success">✓ Dataset loaded successfully!</span>\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    statusDiv.innerHTML = `<span class="error">✗ Error loading dataset</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function getDatasetInfo() {
+            const statusDiv = document.getElementById('info-status');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="info">Fetching info...</span><span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/dataset-info`);
+                const data = await response.json();
+                statusDiv.innerHTML = `<span class="success">✓ Dataset Info:</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        async function testSearch() {
+            const statusDiv = document.getElementById('search-status');
+            const query = document.getElementById('search-query').value;
+            
+            if (!query) {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '<span class="error">Please enter a search query</span>';
+                return;
+            }
+            
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<span class="info">Searching...</span><span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/search-by-text`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: query,
+                        top_k: 5
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.innerHTML = `<span class="success">✓ Found ${data.results?.length || 0} results!</span>\n${JSON.stringify(data, null, 2)}`;
+                } else {
+                    statusDiv.innerHTML = `<span class="error">✗ Search failed</span>\n${JSON.stringify(data, null, 2)}`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<span class="error">✗ Error: ${error.message}</span>`;
+            }
+        }
+
+        // Auto-check health on page load
+        window.onload = () => {
+            checkHealth();
+        };
+    </script>
+</body>
+</html>
